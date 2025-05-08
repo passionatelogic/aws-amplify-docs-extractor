@@ -12,7 +12,25 @@ if (!userDestRoot) {
   console.error('Error: outputDir is required.');
   process.exit(1);
 }
-const DEST_ROOT = path.resolve(path.join(process.cwd(), 'extracted-docs', userDestRoot));
+
+// Fix the path issue by ensuring userDestRoot is treated as a relative path
+// This avoids creating paths like extracted-docs/Users/jake/... by normalizing the path
+let normalizedDestRoot = userDestRoot;
+if (path.isAbsolute(userDestRoot)) {
+  // If the path is absolute, extract just the relevant part after the project root directory
+  const projectDir = process.cwd();
+  if (userDestRoot.startsWith(projectDir)) {
+    normalizedDestRoot = path.relative(projectDir, userDestRoot);
+  } else {
+    // If it's an absolute path that doesn't include the project directory, use the basename
+    normalizedDestRoot = path.basename(userDestRoot);
+  }
+}
+
+// Don't add 'extracted-docs' twice if it's already in the path
+const DEST_ROOT = normalizedDestRoot.includes('extracted-docs') 
+  ? path.resolve(path.join(process.cwd(), normalizedDestRoot))
+  : path.resolve(path.join(process.cwd(), normalizedDestRoot));
 
 // Allow source root to be specified as a command-line argument
 const userSrcRoot = process.argv[2];
@@ -144,13 +162,22 @@ function generateMarkdownTOC(srcDir, destDir) {
   return toc;
 }
 
-function writeOutputFile(srcFile, content) {
+function writeOutputFile(srcFile, content, extractedCount) {
   const relPath = path.relative(SRC_ROOT, srcFile).replace(/\.mdx$/, '.md');
   const destPath = path.join(DEST_ROOT, relPath);
   const destDir = path.dirname(destPath);
+  
+  // Skip creating files with no actual content (just a title)
+  const contentWithoutTitle = content.replace(/^# .*$/m, '').trim();
+  if (!contentWithoutTitle) {
+    console.log(`Skipping empty content: ${relPath}`);
+    return false;
+  }
+  
   fs.mkdirSync(destDir, { recursive: true });
   fs.writeFileSync(destPath, content, 'utf8');
-  console.log(`Extracted: ${relPath}`);
+  // No longer log each extracted file
+  return true;
 }
 
 function main() {
@@ -161,21 +188,35 @@ function main() {
     process.exit(1);
   }
   const mdxFiles = findMdxFiles(SRC_ROOT);
+  let extractedCount = 0;
   for (const file of mdxFiles) {
     const mdx = fs.readFileSync(file, 'utf8');
     if (isOverviewFile(mdx)) {
       const srcDir = path.dirname(file);
       const destDir = path.dirname(path.join(DEST_ROOT, path.relative(SRC_ROOT, file)));
       const toc = generateMarkdownTOC(srcDir, destDir);
-      writeOutputFile(file, toc);
+      if (writeOutputFile(file, toc, extractedCount)) {
+        extractedCount++;
+      }
     } else {
       const title = extractTitle(mdx);
       const content = extractPlatformContent(mdx, platform);
-      const withTitle = title ? `# ${title}\n\n${content}` : content;
-      writeOutputFile(file, withTitle);
+      
+      // If content is empty but we have a title, add a note about platform compatibility
+      let finalContent;
+      if (!content.trim() && title) {
+        finalContent = `# ${title}\n\n> This content is not available for the ${platform} platform.`;
+        console.log(`Empty content for ${path.relative(SRC_ROOT, file)}, adding platform notice.`);
+      } else {
+        finalContent = title ? `# ${title}\n\n${content}` : content;
+      }
+      
+      if (writeOutputFile(file, finalContent, extractedCount)) {
+        extractedCount++;
+      }
     }
   }
-  console.log('Full extraction complete.');
+  console.log(`Extraction complete: ${extractedCount} files extracted.`);
 }
 
 main();
