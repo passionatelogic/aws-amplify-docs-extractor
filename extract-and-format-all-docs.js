@@ -37,25 +37,58 @@ function ensureLatestRepo() {
 // Step 2: For each platform, run the extraction and processing pipeline
 function processPlatform(platform) {
   const srcDir = SRC_PAGES;
-  const outDir = path.join(__dirname, `gen2-docs-${platform}`);
+  const outDir = path.join('extracted-docs', `gen2-docs-${platform}`);
   console.log(`\n=== Processing platform: ${platform} ===`);
-  // Extract docs for this platform
-  execSync(`node scripts/extract-docs.js "${srcDir}" "${outDir}" "${platform}"`, { stdio: 'inherit' });
-  // Flatten folders for this platform
-  execSync(`node scripts/flatten-single-index-folders.js "${outDir}"`, { stdio: 'inherit' });
-  // Add breadcrumbs for this platform
-  execSync(`node scripts/add-breadcrumbs.js "${outDir}"`, { stdio: 'inherit' });
-  console.log(`Output for ${platform}: ${outDir}`);
+  try {
+    // Extract docs for this platform
+    execSync(`node scripts/extract-docs.js "${srcDir}" "${outDir}" "${platform}"`, { stdio: 'inherit' });
+    
+    // Flatten folders for this platform
+    try {
+      execSync(`node scripts/flatten-single-index-folders.js "${outDir}"`, { stdio: 'inherit' });
+    } catch (err) {
+      console.error(`Error flattening folders for ${platform}: ${err.message}`);
+    }
+    
+    // Add breadcrumbs for this platform
+    try {
+      execSync(`node scripts/add-breadcrumbs.js "${outDir}"`, { stdio: 'inherit' });
+    } catch (err) {
+      console.error(`Error adding breadcrumbs for ${platform}: ${err.message}`);
+    }
+    
+    console.log(`Output for ${platform}: ${outDir}`);
+  } catch (err) {
+    console.error(`Error processing platform ${platform}: ${err.message}`);
+  }
 }
 
 function processGen1Platform(platform) {
   const srcDir = path.join(REPO_DIR, 'src', 'pages', 'gen1', '[platform]');
-  const outDir = path.join(__dirname, `gen1-docs-${platform}`);
+  const outDir = path.join('extracted-docs', `gen1-docs-${platform}`);
   console.log(`\n=== Processing Gen1 platform: ${platform} ===`);
-  execSync(`node scripts/extract-docs.js "${srcDir}" "${outDir}" "${platform}"`, { stdio: 'inherit' });
-  execSync(`node scripts/flatten-single-index-folders.js "${outDir}"`, { stdio: 'inherit' });
-  execSync(`node scripts/add-breadcrumbs.js "${outDir}"`, { stdio: 'inherit' });
-  console.log(`Output for gen1 ${platform}: ${outDir}`);
+  try {
+    // Extract docs for this platform
+    execSync(`node scripts/extract-docs.js "${srcDir}" "${outDir}" "${platform}"`, { stdio: 'inherit' });
+    
+    // Flatten folders for this platform
+    try {
+      execSync(`node scripts/flatten-single-index-folders.js "${outDir}"`, { stdio: 'inherit' });
+    } catch (err) {
+      console.error(`Error flattening folders for gen1 ${platform}: ${err.message}`);
+    }
+    
+    // Add breadcrumbs for this platform
+    try {
+      execSync(`node scripts/add-breadcrumbs.js "${outDir}"`, { stdio: 'inherit' });
+    } catch (err) {
+      console.error(`Error adding breadcrumbs for gen1 ${platform}: ${err.message}`);
+    }
+    
+    console.log(`Output for gen1 ${platform}: ${outDir}`);
+  } catch (err) {
+    console.error(`Error processing gen1 platform ${platform}: ${err.message}`);
+  }
 }
 
 function main() {
@@ -71,17 +104,21 @@ function main() {
   const apiRefJson = path.join(REPO_DIR, 'src', 'directory', 'apiReferences', 'amplify-js.json');
   if (fs.existsSync(apiRefJson)) {
     for (const platform of PLATFORMS) {
-      const apiRefOut = path.join(__dirname, `gen2-docs-${platform}`, 'build-a-backend', 'add-aws-services');
-      if (fs.existsSync(path.join(__dirname, `gen2-docs-${platform}`))) {
+      const apiRefOut = path.join('extracted-docs', `gen2-docs-${platform}`, 'build-a-backend', 'add-aws-services');
+      if (fs.existsSync(path.join('extracted-docs', `gen2-docs-${platform}`))) {
         console.log(`\n=== Generating static API reference docs for ${platform} ===`);
-        execSync(`node scripts/extract-api-reference.js "${apiRefJson}" "${apiRefOut}"`, { stdio: 'inherit' });
+        try {
+          execSync(`node scripts/extract-api-reference.js "${apiRefJson}" "${apiRefOut}"`, { stdio: 'inherit' });
+        } catch (err) {
+          console.error(`Error generating API reference docs for ${platform}: ${err.message}`);
+        }
       }
     }
   } else {
     console.warn('amplify-js.json not found, skipping API reference extraction.');
   }
 
-  console.log('\nAll done! Outputs are in ./gen2-docs-<platform>/ and ./gen1-docs-<platform>/ for each platform.');
+  console.log('\nAll done! Outputs are in ./extracted-docs/gen2-docs-<platform>/ and ./extracted-docs/gen1-docs-<platform>/ for each platform.');
 }
 
 main();

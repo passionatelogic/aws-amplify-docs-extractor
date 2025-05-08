@@ -103,7 +103,16 @@ function main() {
     console.error('Usage: node scripts/extract-api-reference.js /path/to/amplify-js.json /output/root');
     process.exit(1);
   }
-  const outputRoot = path.resolve(path.join(process.cwd(), 'extracted-docs', userOutputRoot));
+
+  // Handle both absolute and relative paths for the output root
+  let outputRoot;
+  if (path.isAbsolute(userOutputRoot)) {
+    outputRoot = userOutputRoot;
+  } else {
+    outputRoot = path.resolve(path.join(process.cwd(), userOutputRoot));
+  }
+
+  console.log('Using API reference output root:', outputRoot);
   const json = loadJson(jsonPath);
   
   // Dynamically identify category prefixes

@@ -9,9 +9,20 @@ const fs = require('fs');
 const path = require('path');
 
 const userDocsRoot = process.argv[2];
-const DOCS_ROOT = userDocsRoot
-  ? path.resolve(path.join(process.cwd(), 'extracted-docs', userDocsRoot))
-  : path.join(__dirname, 'gen2-vue-docs');
+let DOCS_ROOT;
+
+if (!userDocsRoot) {
+  DOCS_ROOT = path.join(__dirname, 'gen2-vue-docs');
+} else {
+  // Handle both absolute and relative paths
+  if (path.isAbsolute(userDocsRoot)) {
+    DOCS_ROOT = userDocsRoot;
+  } else {
+    DOCS_ROOT = path.resolve(path.join(process.cwd(), userDocsRoot));
+  }
+}
+
+console.log('Using docs root:', DOCS_ROOT);
 
 // Helper: Recursively find all folders with only index.md and no subfolders
 function findSingleIndexFolders(dir) {
@@ -58,6 +69,8 @@ function updateLinks(docsRoot, oldRel, newRel) {
 
 function main() {
   const toFlatten = findSingleIndexFolders(DOCS_ROOT);
+  let flattenedCount = 0;
+  
   for (const folder of toFlatten) {
     const parent = path.dirname(folder);
     const folderName = path.basename(folder);
@@ -71,9 +84,10 @@ function main() {
     const oldRel = path.relative(DOCS_ROOT, path.join(folderName, 'index.md'));
     const newRel = path.relative(DOCS_ROOT, `${folderName}.md`);
     updateLinks(DOCS_ROOT, oldRel, newRel);
-    console.log(`Flattened: ${folderName}/index.md -> ${folderName}.md`);
+    flattenedCount++;
   }
-  console.log('Flattening complete.');
+  
+  console.log(`Flattening complete. Flattened ${flattenedCount} folders.`);
 }
 
 main();

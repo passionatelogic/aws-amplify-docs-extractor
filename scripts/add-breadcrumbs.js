@@ -9,9 +9,20 @@ const fs = require('fs');
 const path = require('path');
 
 const userDocsRoot = process.argv[2];
-const DOCS_ROOT = userDocsRoot
-  ? path.resolve(userDocsRoot)
-  : path.join(__dirname, 'gen2-vue-docs');
+let DOCS_ROOT;
+
+if (!userDocsRoot) {
+  DOCS_ROOT = path.join(__dirname, 'gen2-vue-docs');
+} else {
+  // Handle both absolute and relative paths
+  if (path.isAbsolute(userDocsRoot)) {
+    DOCS_ROOT = userDocsRoot;
+  } else {
+    DOCS_ROOT = path.resolve(path.join(process.cwd(), userDocsRoot));
+  }
+}
+
+console.log('Using docs root for breadcrumbs:', DOCS_ROOT);
 
 // Helper: Convert a file path to a breadcrumb array
 function getBreadcrumbs(filePath) {
