@@ -98,6 +98,41 @@ function removeNonVueReactBlocks(md) {
   return md.replace(/```tsx[\s\S]*?```/g, '');
 }
 
+// Helper: Check if file is relevant for the current platform
+function isPlatformRelevant(mdx, platform) {
+  // Try to find: export const meta = { ... platforms: ['platform1', 'platform2'], ... }
+  const metaMatch = mdx.match(/meta\s*=\s*\{([\s\S]*?)\}/m);
+  if (metaMatch) {
+    const metaBlock = metaMatch[1];
+    const platformsMatch = metaBlock.match(/platforms\s*:\s*(\[[\s\S]*?\])/);
+    if (platformsMatch) {
+      try {
+        // Clean up the array string to make it valid JSON
+        // Remove comments, normalize quotes, and handle whitespace
+        let platformsStr = platformsMatch[1]
+          .replace(/\/\/.*$/gm, '') // Remove single line comments
+          .replace(/,\s*\]/g, ']')  // Remove trailing commas
+          .replace(/'/g, '"')       // Replace single quotes with double quotes
+          .replace(/\s+/g, ' ')     // Normalize whitespace
+          .trim();
+          
+        // Parse the array and check if the current platform is included
+        const platforms = JSON.parse(platformsStr);
+        return platforms.includes(platform) || platforms.includes('all');
+      } catch (e) {
+        // If we can't parse the JSON, do a simple string check
+        const rawStr = platformsMatch[1].toLowerCase();
+        return rawStr.includes(`"${platform}"`) || 
+               rawStr.includes(`'${platform}'`) ||
+               rawStr.includes(`"all"`) || 
+               rawStr.includes(`'all'`);
+      }
+    }
+  }
+  // If no platforms array is specified, assume the file is for all platforms
+  return true;
+}
+
 function extractPlatformContent(mdx, platform) {
   mdx = cleanFrontmatterAndCode(mdx);
 
@@ -189,8 +224,18 @@ function main() {
   }
   const mdxFiles = findMdxFiles(SRC_ROOT);
   let extractedCount = 0;
+  let skippedCount = 0;
+  
   for (const file of mdxFiles) {
     const mdx = fs.readFileSync(file, 'utf8');
+    
+    // Check if file should be included for this platform based on meta.platforms
+    if (!isPlatformRelevant(mdx, platform)) {
+      console.log(`Skipping ${path.relative(SRC_ROOT, file)} - not relevant for ${platform} platform.`);
+      skippedCount++;
+      continue;
+    }
+    
     if (isOverviewFile(mdx)) {
       const srcDir = path.dirname(file);
       const destDir = path.dirname(path.join(DEST_ROOT, path.relative(SRC_ROOT, file)));
@@ -216,7 +261,7 @@ function main() {
       }
     }
   }
-  console.log(`Extraction complete: ${extractedCount} files extracted.`);
+  console.log(`Extraction complete: ${extractedCount} files extracted, ${skippedCount} files skipped due to platform filtering.`);
 }
 
 main();

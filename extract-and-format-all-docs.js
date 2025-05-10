@@ -57,6 +57,64 @@ function processPlatform(platform) {
       console.error(`Error adding breadcrumbs for ${platform}: ${err.message}`);
     }
     
+    // Remove platform-specific API references that aren't relevant for this platform
+    try {
+      // Look for any reference directories
+      const apiReferenceDirs = [];
+      const findReferenceCmd = `find "${outDir}" -type d -name "reference" -o -name "api" | grep -v "node_modules"`;
+      const dirs = execSync(findReferenceCmd, { stdio: 'pipe' }).toString().trim().split('\n');
+      
+      dirs.forEach(dir => {
+        if (dir && fs.existsSync(dir)) {
+          apiReferenceDirs.push(dir);
+        }
+      });
+      
+      if (apiReferenceDirs.length > 0) {
+        console.log(`Found ${apiReferenceDirs.length} reference directories to clean for ${platform}...`);
+        
+        apiReferenceDirs.forEach(refDir => {
+          if (platform === 'vue' || platform === 'react' || platform === 'angular' || 
+              platform === 'javascript' || platform === 'nextjs') {
+            // Web platforms shouldn't have Flutter/Swift/Android docs
+            console.log(`Cleaning up mobile API references in ${refDir}...`);
+            execSync(`find "${refDir}" -name "*flutter*.md" -delete`, { stdio: 'pipe' });
+            execSync(`find "${refDir}" -name "*swift*.md" -delete`, { stdio: 'pipe' });
+            execSync(`find "${refDir}" -name "*android*.md" -delete`, { stdio: 'pipe' });
+          } else if (platform === 'flutter') {
+            // Flutter shouldn't have web-specific or other mobile platform docs
+            console.log(`Cleaning up non-Flutter API references in ${refDir}...`);
+            execSync(`find "${refDir}" -name "*react*.md" -delete`, { stdio: 'pipe' });
+            execSync(`find "${refDir}" -name "*vue*.md" -delete`, { stdio: 'pipe' });
+            execSync(`find "${refDir}" -name "*angular*.md" -delete`, { stdio: 'pipe' });
+            execSync(`find "${refDir}" -name "*javascript*.md" -delete`, { stdio: 'pipe' });
+            execSync(`find "${refDir}" -name "*swift*.md" -delete`, { stdio: 'pipe' });
+            execSync(`find "${refDir}" -name "*android*.md" -delete`, { stdio: 'pipe' });
+          } else if (platform === 'swift' || platform === 'ios') {
+            // iOS platforms shouldn't have Android/Flutter/web-specific docs
+            console.log(`Cleaning up non-iOS API references in ${refDir}...`);
+            execSync(`find "${refDir}" -name "*flutter*.md" -delete`, { stdio: 'pipe' });
+            execSync(`find "${refDir}" -name "*android*.md" -delete`, { stdio: 'pipe' });
+            execSync(`find "${refDir}" -name "*react*.md" -delete`, { stdio: 'pipe' });
+            execSync(`find "${refDir}" -name "*vue*.md" -delete`, { stdio: 'pipe' });
+            execSync(`find "${refDir}" -name "*angular*.md" -delete`, { stdio: 'pipe' });
+            execSync(`find "${refDir}" -name "*javascript*.md" -delete`, { stdio: 'pipe' });
+          } else if (platform === 'android') {
+            // Android shouldn't have iOS/Flutter/web-specific docs
+            console.log(`Cleaning up non-Android API references in ${refDir}...`);
+            execSync(`find "${refDir}" -name "*flutter*.md" -delete`, { stdio: 'pipe' });
+            execSync(`find "${refDir}" -name "*swift*.md" -delete`, { stdio: 'pipe' });
+            execSync(`find "${refDir}" -name "*react*.md" -delete`, { stdio: 'pipe' });
+            execSync(`find "${refDir}" -name "*vue*.md" -delete`, { stdio: 'pipe' });
+            execSync(`find "${refDir}" -name "*angular*.md" -delete`, { stdio: 'pipe' });
+            execSync(`find "${refDir}" -name "*javascript*.md" -delete`, { stdio: 'pipe' });
+          }
+        });
+      }
+    } catch (err) {
+      console.error(`Error cleaning up reference files for ${platform}: ${err.message}`);
+    }
+    
     console.log(`Output for ${platform}: ${outDir}`);
   } catch (err) {
     console.error(`Error processing platform ${platform}: ${err.message}`);
@@ -85,6 +143,51 @@ function processGen1Platform(platform) {
       console.error(`Error adding breadcrumbs for gen1 ${platform}: ${err.message}`);
     }
     
+    // Remove platform-specific references that aren't relevant
+    // For example, remove Flutter API reference from Vue documentation
+    try {
+      const referenceDir = path.join(outDir, 'reference');
+      if (fs.existsSync(referenceDir)) {
+        if (platform === 'vue' || platform === 'react' || platform === 'angular' || 
+            platform === 'javascript' || platform === 'nextjs') {
+          // Web platforms shouldn't have Flutter/Swift/Android docs
+          console.log(`Cleaning up mobile API references for ${platform}...`);
+          execSync(`find "${referenceDir}" -name "*flutter*.md" -delete`, { stdio: 'pipe' });
+          execSync(`find "${referenceDir}" -name "*swift*.md" -delete`, { stdio: 'pipe' });
+          execSync(`find "${referenceDir}" -name "*android*.md" -delete`, { stdio: 'pipe' });
+        } else if (platform === 'flutter') {
+          // Flutter shouldn't have web-specific or other mobile platform docs
+          console.log(`Cleaning up non-Flutter API references for ${platform}...`);
+          execSync(`find "${referenceDir}" -name "*react*.md" -delete`, { stdio: 'pipe' });
+          execSync(`find "${referenceDir}" -name "*vue*.md" -delete`, { stdio: 'pipe' });
+          execSync(`find "${referenceDir}" -name "*angular*.md" -delete`, { stdio: 'pipe' });
+          execSync(`find "${referenceDir}" -name "*javascript*.md" -delete`, { stdio: 'pipe' });
+          execSync(`find "${referenceDir}" -name "*swift*.md" -delete`, { stdio: 'pipe' });
+          execSync(`find "${referenceDir}" -name "*android*.md" -delete`, { stdio: 'pipe' });
+        } else if (platform === 'swift' || platform === 'ios') {
+          // iOS platforms shouldn't have Android/Flutter/web-specific docs
+          console.log(`Cleaning up non-iOS API references for ${platform}...`);
+          execSync(`find "${referenceDir}" -name "*flutter*.md" -delete`, { stdio: 'pipe' });
+          execSync(`find "${referenceDir}" -name "*android*.md" -delete`, { stdio: 'pipe' });
+          execSync(`find "${referenceDir}" -name "*react*.md" -delete`, { stdio: 'pipe' });
+          execSync(`find "${referenceDir}" -name "*vue*.md" -delete`, { stdio: 'pipe' });
+          execSync(`find "${referenceDir}" -name "*angular*.md" -delete`, { stdio: 'pipe' });
+          execSync(`find "${referenceDir}" -name "*javascript*.md" -delete`, { stdio: 'pipe' });
+        } else if (platform === 'android') {
+          // Android shouldn't have iOS/Flutter/web-specific docs
+          console.log(`Cleaning up non-Android API references for ${platform}...`);
+          execSync(`find "${referenceDir}" -name "*flutter*.md" -delete`, { stdio: 'pipe' });
+          execSync(`find "${referenceDir}" -name "*swift*.md" -delete`, { stdio: 'pipe' });
+          execSync(`find "${referenceDir}" -name "*react*.md" -delete`, { stdio: 'pipe' });
+          execSync(`find "${referenceDir}" -name "*vue*.md" -delete`, { stdio: 'pipe' });
+          execSync(`find "${referenceDir}" -name "*angular*.md" -delete`, { stdio: 'pipe' });
+          execSync(`find "${referenceDir}" -name "*javascript*.md" -delete`, { stdio: 'pipe' });
+        }
+      }
+    } catch (err) {
+      console.error(`Error cleaning up reference files for gen1 ${platform}: ${err.message}`);
+    }
+    
     console.log(`Output for gen1 ${platform}: ${outDir}`);
   } catch (err) {
     console.error(`Error processing gen1 platform ${platform}: ${err.message}`);
@@ -109,6 +212,30 @@ function main() {
         console.log(`\n=== Generating static API reference docs for ${platform} ===`);
         try {
           execSync(`node scripts/extract-api-reference.js "${apiRefJson}" "${apiRefOut}"`, { stdio: 'inherit' });
+          
+          // Check if "reference" directories exist in category folders
+          const categoriesDir = path.join('extracted-docs', `gen2-docs-${platform}`, 'build-a-backend', 'add-aws-services');
+          if (fs.existsSync(categoriesDir)) {
+            // Create [category]/reference directories where needed
+            const categories = fs.readdirSync(categoriesDir, { withFileTypes: true })
+              .filter(dirent => dirent.isDirectory() && !dirent.name.startsWith('.'))
+              .map(dirent => dirent.name);
+              
+            for (const category of categories) {
+              const referenceDir = path.join(categoriesDir, category, 'reference');
+              const referenceMdPath = path.join(categoriesDir, category, 'reference.md');
+              
+              // If a category has a reference.md file but no reference directory, create it
+              if (fs.existsSync(referenceMdPath) && !fs.existsSync(referenceDir)) {
+                fs.mkdirSync(referenceDir, { recursive: true });
+                fs.writeFileSync(
+                  path.join(referenceDir, 'index.md'),
+                  fs.readFileSync(referenceMdPath, 'utf8')
+                );
+                console.log(`Created reference directory for ${platform}/${category}`);
+              }
+            }
+          }
         } catch (err) {
           console.error(`Error generating API reference docs for ${platform}: ${err.message}`);
         }

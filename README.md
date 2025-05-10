@@ -1,6 +1,6 @@
-# aws-amplify-docs-extractor
+# AWS Amplify Docs Extractor
 
-A stand-alone tool to extract, process, and statically generate documentation (including API reference) for all major Amplify platforms from the official [aws-amplify/docs](https://github.com/aws-amplify/docs.git) repository.
+A comprehensive, stand-alone tool to extract, process, and statically generate documentation (including API reference) for all major Amplify platforms from the official [aws-amplify/docs](https://github.com/aws-amplify/docs.git) repository.
 
 ---
 
@@ -18,11 +18,17 @@ A stand-alone tool to extract, process, and statically generate documentation (i
   1. Extracts all relevant documentation (with platform-specific and shared content)
   2. Flattens single-index folders for a clean structure
   3. Adds breadcrumbs to every Markdown file for easy navigation
-  4. **Generates static API reference documentation for each major category** (e.g., Auth, Storage, Analytics, etc.) in every platform's output
+  4. **Generates comprehensive API reference documentation for every service category** (Auth, Storage, Analytics, API, etc.) in every platform's output
+
+- **Complete API Reference Coverage:**
+  - Automatically detects and extracts all available API categories from the Amplify source
+  - Provides detailed API documentation including parameters, return types, and examples
+  - Matches the structure of the original docs site with proper reference directories
+  - Includes proper navigation with table of contents and links
 
 - **Output:**  
-  - All processed documentation is output to `./gen2-docs-<platform>/` and `./gen1-docs-<platform>/` for each platform.
-  - API reference docs are generated in `build-a-backend/add-aws-services/<category>/reference.md` within each Gen2 platform directory.
+  - All processed documentation is output to `./extracted-docs/gen2-docs-<platform>/` and `./extracted-docs/gen1-docs-<platform>/` for each platform.
+  - API reference docs are generated in `build-a-backend/add-aws-services/<category>/reference/index.md` and at `build-a-backend/add-aws-services/<category>/reference.md` within each Gen2 platform directory.
 
 ---
 
@@ -38,19 +44,17 @@ A stand-alone tool to extract, process, and statically generate documentation (i
    - Clone (or update) the latest `aws-amplify/docs` repo into `./aws-amplify-docs`
    - Extract and process documentation for all supported platforms
    - Flatten folder structures and add breadcrumbs
-   - Generate static API reference docs for each category and platform
+   - Generate comprehensive API reference docs for each category across all platforms
 
 3. **Result:**  
-   The fully processed documentation will be in the `gen2-docs-<platform>/` and `gen1-docs-<platform>/` directories.  
-   For example:
-   - `gen2-docs-vue/`
-   - `gen2-docs-react/`
-   - `gen1-docs-angular/`
-   - etc.
-
-   Each Gen2 platform will have API reference docs in:
+   The fully processed documentation will be in the `./extracted-docs/` directory:  
+   - `./extracted-docs/gen2-docs-<platform>/`
+   - `./extracted-docs/gen1-docs-<platform>/`
+   
+   Each Gen2 platform will have API reference docs in both formats for compatibility:
    ```
-   gen2-docs-<platform>/build-a-backend/add-aws-services/<category>/reference.md
+   ./extracted-docs/gen2-docs-<platform>/build-a-backend/add-aws-services/<category>/reference.md
+   ./extracted-docs/gen2-docs-<platform>/build-a-backend/add-aws-services/<category>/reference/index.md
    ```
 
 ---
@@ -58,29 +62,58 @@ A stand-alone tool to extract, process, and statically generate documentation (i
 ## Script Details
 
 - **extract-and-format-all-docs.js**  
-  Orchestrates the entire workflow: fetches the latest docs, runs all processing scripts for every platform, and generates static API reference docs.
+  Orchestrates the entire workflow: fetches the latest docs, runs all processing scripts for every platform, and generates comprehensive API reference docs. Ensures proper directory structure matching the original docs site.
 
 - **scripts/extract-docs.js**  
-  Extracts platform-specific and shared content from all Amplify documentation `.mdx` files, converts them to Markdown, and outputs them to the appropriate platform directory.
+  Extracts platform-specific and shared content from all Amplify documentation `.mdx` files, converts them to Markdown, and outputs them to the appropriate platform directory. Handles platform-specific content filters and properly processes special components.
 
 - **scripts/flatten-single-index-folders.js**  
-  Flattens the documentation structure by replacing any folder that contains only a single `index.md` file and no subfolders with a single `.md` file at the parent level. Updates all internal links.
+  Flattens the documentation structure by replacing any folder that contains only a single `index.md` file and no subfolders with a single `.md` file at the parent level. Updates all internal links to maintain navigation integrity.
 
 - **scripts/add-breadcrumbs.js**  
-  Adds a breadcrumb trail to the top of every Markdown file, reflecting the file's full path and context within the documentation.
+  Adds a breadcrumb trail to the top of every Markdown file, reflecting the file's full path and context within the documentation. Ensures navigation is intuitive and consistent.
 
 - **scripts/extract-api-reference.js**  
-  Extracts API reference data from the Amplify API model and generates static Markdown reference docs for each major category in every Gen2 platform's output.
+  Extracts comprehensive API reference data from the Amplify API model JSON file:
+  - Dynamically identifies all service categories from multiple sources in the JSON
+  - Creates detailed API documentation with parameter info, return types, and examples
+  - Generates table of contents for easy navigation
+  - Ensures compatibility with both original documentation paths
 
 ---
 
-## Advanced
+## Advanced Usage
 
-- To add or remove platforms, edit the `PLATFORMS` array in `extract-and-format-all-docs.js`.
-- To run scripts individually, see their usage in the code comments in the scripts/ directory.
-- To customize API reference category mappings, edit `CATEGORY_PREFIXES` in `scripts/extract-api-reference.js`.
+- **Adding or Removing Platforms**:  
+  Edit the `PLATFORMS` array in `extract-and-format-all-docs.js`.
+
+- **Running Scripts Individually**:  
+  See usage information in the comments at the top of each script in the `scripts/` directory.
+
+- **Customizing API Category Detection**:  
+  Edit the `knownCategories` array in `scripts/extract-api-reference.js` to add or modify service categories.
+
+- **Mapping between Different Category Names**:  
+  Update the `categoryMapping` object in `scripts/extract-api-reference.js` to handle mappings between kebab-case and camelCase service names.
+
+---
+
+## How It Works
+
+The extraction process carefully analyzes the structure of the AWS Amplify Docs repository to ensure complete coverage:
+
+1. **Content Extraction**: Analyzes the dynamic routing structure of the Next.js app to identify all documentation pages, including special handling for platform-specific content through `<InlineFilter>` components.
+
+2. **Structure Preservation**: Maintains the logical structure of the original documentation while optimizing for static browsing.
+
+3. **API Reference Extraction**: Parses the comprehensive `amplify-js.json` specification file to extract detailed API references:
+   - Intelligently detects all service categories
+   - Handles both standard and special-case categories
+   - Creates detailed documentation with proper navigation  
+
+4. **Path Alignment**: Creates reference documentation in both formats (`<category>/reference.md` and `<category>/reference/index.md`) to ensure compatibility with all link patterns.
 
 ---
 
 **Output:**  
-A clean, static, and navigable documentation set for Amplify Gen2 and Gen1, for every major platform, including static API reference docs for each category.
+A complete, static, and easily navigable documentation set for Amplify Gen2 and Gen1, for every major platform, including comprehensive API reference docs for all service categories. The output closely mirrors the structure of the original AWS Amplify documentation site while being fully static and self-contained.
