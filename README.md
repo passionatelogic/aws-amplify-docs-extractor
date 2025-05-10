@@ -29,6 +29,7 @@ A comprehensive, stand-alone tool to extract, process, and statically generate d
 - **Output:**  
   - All processed documentation is output to `./extracted-docs/gen2-docs-<platform>/` and `./extracted-docs/gen1-docs-<platform>/` for each platform.
   - API reference docs are generated in `build-a-backend/add-aws-services/<category>/reference/index.md` and at `build-a-backend/add-aws-services/<category>/reference.md` within each Gen2 platform directory.
+  - Each platform directory includes both a `README.md` and `index.html` file with platform-specific information, providing useful content when browsing at the root level.
 
 ---
 
@@ -76,6 +77,12 @@ A comprehensive, stand-alone tool to extract, process, and statically generate d
   - Creates detailed API documentation with parameter info, return types, and examples
   - Generates table of contents for easy navigation
   - Ensures compatibility with both original documentation paths
+
+- **scripts/create-html-indexes.js**  
+  Creates HTML index files from README.md files in all platform directories:
+  - Automatically converts Markdown syntax to HTML
+  - Generates well-formatted HTML with consistent styling
+  - Provides default content when browsing platform directories via HTTP
 
 ---
 

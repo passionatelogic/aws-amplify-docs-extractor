@@ -23,15 +23,28 @@ const PLATFORMS = [
   'flutter'
 ];
 
+// Stats for overall processing
+const stats = {
+  gen2: { processed: 0, errors: 0 },
+  gen1: { processed: 0, errors: 0 },
+  apiRefs: { processed: 0, errors: 0 },
+};
+
 // Step 1: Clone or pull the latest aws-amplify/docs.git
 function ensureLatestRepo() {
-  if (!fs.existsSync(REPO_DIR)) {
-    console.log('Cloning aws-amplify/docs.git...');
-    execSync(`git clone --depth=1 ${REPO_URL} "${REPO_DIR}"`, { stdio: 'inherit' });
-  } else {
-    console.log('Pulling latest changes in aws-amplify/docs.git...');
-    execSync('git fetch --all', { cwd: REPO_DIR, stdio: 'inherit' });
-    execSync('git reset --hard origin/main', { cwd: REPO_DIR, stdio: 'inherit' });
+  try {
+    if (!fs.existsSync(REPO_DIR)) {
+      console.log('Cloning aws-amplify/docs.git repository...');
+      execSync(`git clone --depth=1 ${REPO_URL} "${REPO_DIR}"`, { stdio: ['ignore', 'ignore', 'pipe'] });
+    } else {
+      console.log('Pulling latest changes from aws-amplify/docs.git...');
+      execSync('git fetch --all', { cwd: REPO_DIR, stdio: ['ignore', 'ignore', 'pipe'] });
+      execSync('git reset --hard origin/main', { cwd: REPO_DIR, stdio: ['ignore', 'ignore', 'pipe'] });
+    }
+    return true;
+  } catch (err) {
+    console.error(`Error accessing repository: ${err.message}`);
+    return false;
   }
 }
 
@@ -39,14 +52,14 @@ function ensureLatestRepo() {
 function processPlatform(platform) {
   const srcDir = SRC_PAGES;
   const outDir = path.join('extracted-docs', `gen2-docs-${platform}`);
-  console.log(`\n=== Processing platform: ${platform} ===`);
+  
   try {
     // Extract docs for this platform
-    execSync(`node scripts/extract-docs.js "${srcDir}" "${outDir}" "${platform}"`, { stdio: 'inherit' });
+    execSync(`node scripts/extract-docs.js "${srcDir}" "${outDir}" "${platform}"`, { stdio: ['ignore', 'pipe', 'pipe'] });
     
     // Add breadcrumbs for this platform
     try {
-      execSync(`node scripts/add-breadcrumbs.js "${outDir}"`, { stdio: 'inherit' });
+      execSync(`node scripts/add-breadcrumbs.js "${outDir}"`, { stdio: ['ignore', 'pipe', 'pipe'] });
     } catch (err) {
       console.error(`Error adding breadcrumbs for ${platform}: ${err.message}`);
     }
@@ -65,19 +78,15 @@ function processPlatform(platform) {
       });
       
       if (apiReferenceDirs.length > 0) {
-        console.log(`Found ${apiReferenceDirs.length} reference directories to clean for ${platform}...`);
-        
-        apiReferenceDirs.forEach(refDir => {
+        for (const refDir of apiReferenceDirs) {
           if (platform === 'vue' || platform === 'react' || platform === 'angular' || 
               platform === 'javascript' || platform === 'nextjs') {
             // Web platforms shouldn't have Flutter/Swift/Android docs
-            console.log(`Cleaning up mobile API references in ${refDir}...`);
             execSync(`find "${refDir}" -name "*flutter*.md" -delete`, { stdio: 'pipe' });
             execSync(`find "${refDir}" -name "*swift*.md" -delete`, { stdio: 'pipe' });
             execSync(`find "${refDir}" -name "*android*.md" -delete`, { stdio: 'pipe' });
           } else if (platform === 'flutter') {
             // Flutter shouldn't have web-specific or other mobile platform docs
-            console.log(`Cleaning up non-Flutter API references in ${refDir}...`);
             execSync(`find "${refDir}" -name "*react*.md" -delete`, { stdio: 'pipe' });
             execSync(`find "${refDir}" -name "*vue*.md" -delete`, { stdio: 'pipe' });
             execSync(`find "${refDir}" -name "*angular*.md" -delete`, { stdio: 'pipe' });
@@ -86,7 +95,6 @@ function processPlatform(platform) {
             execSync(`find "${refDir}" -name "*android*.md" -delete`, { stdio: 'pipe' });
           } else if (platform === 'swift' || platform === 'ios') {
             // iOS platforms shouldn't have Android/Flutter/web-specific docs
-            console.log(`Cleaning up non-iOS API references in ${refDir}...`);
             execSync(`find "${refDir}" -name "*flutter*.md" -delete`, { stdio: 'pipe' });
             execSync(`find "${refDir}" -name "*android*.md" -delete`, { stdio: 'pipe' });
             execSync(`find "${refDir}" -name "*react*.md" -delete`, { stdio: 'pipe' });
@@ -95,7 +103,6 @@ function processPlatform(platform) {
             execSync(`find "${refDir}" -name "*javascript*.md" -delete`, { stdio: 'pipe' });
           } else if (platform === 'android') {
             // Android shouldn't have iOS/Flutter/web-specific docs
-            console.log(`Cleaning up non-Android API references in ${refDir}...`);
             execSync(`find "${refDir}" -name "*flutter*.md" -delete`, { stdio: 'pipe' });
             execSync(`find "${refDir}" -name "*swift*.md" -delete`, { stdio: 'pipe' });
             execSync(`find "${refDir}" -name "*react*.md" -delete`, { stdio: 'pipe' });
@@ -103,55 +110,53 @@ function processPlatform(platform) {
             execSync(`find "${refDir}" -name "*angular*.md" -delete`, { stdio: 'pipe' });
             execSync(`find "${refDir}" -name "*javascript*.md" -delete`, { stdio: 'pipe' });
           }
-        });
+        }
       }
     } catch (err) {
       console.error(`Error cleaning up reference files for ${platform}: ${err.message}`);
     }
     
-    console.log(`Output for ${platform}: ${outDir}`);
+    stats.gen2.processed++;
   } catch (err) {
     console.error(`Error processing platform ${platform}: ${err.message}`);
+    stats.gen2.errors++;
   }
 }
 
 function processGen1Platform(platform) {
   const srcDir = path.join(REPO_DIR, 'src', 'pages', 'gen1', '[platform]');
   const outDir = path.join('extracted-docs', `gen1-docs-${platform}`);
-  console.log(`\n=== Processing Gen1 platform: ${platform} ===`);
+  
   try {
     // Extract docs for this platform
-    execSync(`node scripts/extract-docs.js "${srcDir}" "${outDir}" "${platform}"`, { stdio: 'inherit' });
+    execSync(`node scripts/extract-docs.js "${srcDir}" "${outDir}" "${platform}"`, { stdio: ['ignore', 'pipe', 'pipe'] });
     
     // Flatten folders for this platform
     try {
-      execSync(`node scripts/flatten-single-index-folders.js "${outDir}"`, { stdio: 'inherit' });
+      execSync(`node scripts/flatten-single-index-folders.js "${outDir}"`, { stdio: ['ignore', 'pipe', 'pipe'] });
     } catch (err) {
       console.error(`Error flattening folders for gen1 ${platform}: ${err.message}`);
     }
     
     // Add breadcrumbs for this platform
     try {
-      execSync(`node scripts/add-breadcrumbs.js "${outDir}"`, { stdio: 'inherit' });
+      execSync(`node scripts/add-breadcrumbs.js "${outDir}"`, { stdio: ['ignore', 'pipe', 'pipe'] });
     } catch (err) {
       console.error(`Error adding breadcrumbs for gen1 ${platform}: ${err.message}`);
     }
     
     // Remove platform-specific references that aren't relevant
-    // For example, remove Flutter API reference from Vue documentation
     try {
       const referenceDir = path.join(outDir, 'reference');
       if (fs.existsSync(referenceDir)) {
         if (platform === 'vue' || platform === 'react' || platform === 'angular' || 
             platform === 'javascript' || platform === 'nextjs') {
           // Web platforms shouldn't have Flutter/Swift/Android docs
-          console.log(`Cleaning up mobile API references for ${platform}...`);
           execSync(`find "${referenceDir}" -name "*flutter*.md" -delete`, { stdio: 'pipe' });
           execSync(`find "${referenceDir}" -name "*swift*.md" -delete`, { stdio: 'pipe' });
           execSync(`find "${referenceDir}" -name "*android*.md" -delete`, { stdio: 'pipe' });
         } else if (platform === 'flutter') {
           // Flutter shouldn't have web-specific or other mobile platform docs
-          console.log(`Cleaning up non-Flutter API references for ${platform}...`);
           execSync(`find "${referenceDir}" -name "*react*.md" -delete`, { stdio: 'pipe' });
           execSync(`find "${referenceDir}" -name "*vue*.md" -delete`, { stdio: 'pipe' });
           execSync(`find "${referenceDir}" -name "*angular*.md" -delete`, { stdio: 'pipe' });
@@ -160,7 +165,6 @@ function processGen1Platform(platform) {
           execSync(`find "${referenceDir}" -name "*android*.md" -delete`, { stdio: 'pipe' });
         } else if (platform === 'swift' || platform === 'ios') {
           // iOS platforms shouldn't have Android/Flutter/web-specific docs
-          console.log(`Cleaning up non-iOS API references for ${platform}...`);
           execSync(`find "${referenceDir}" -name "*flutter*.md" -delete`, { stdio: 'pipe' });
           execSync(`find "${referenceDir}" -name "*android*.md" -delete`, { stdio: 'pipe' });
           execSync(`find "${referenceDir}" -name "*react*.md" -delete`, { stdio: 'pipe' });
@@ -169,7 +173,6 @@ function processGen1Platform(platform) {
           execSync(`find "${referenceDir}" -name "*javascript*.md" -delete`, { stdio: 'pipe' });
         } else if (platform === 'android') {
           // Android shouldn't have iOS/Flutter/web-specific docs
-          console.log(`Cleaning up non-Android API references for ${platform}...`);
           execSync(`find "${referenceDir}" -name "*flutter*.md" -delete`, { stdio: 'pipe' });
           execSync(`find "${referenceDir}" -name "*swift*.md" -delete`, { stdio: 'pipe' });
           execSync(`find "${referenceDir}" -name "*react*.md" -delete`, { stdio: 'pipe' });
@@ -182,30 +185,22 @@ function processGen1Platform(platform) {
       console.error(`Error cleaning up reference files for gen1 ${platform}: ${err.message}`);
     }
     
-    console.log(`Output for gen1 ${platform}: ${outDir}`);
+    stats.gen1.processed++;
   } catch (err) {
     console.error(`Error processing gen1 platform ${platform}: ${err.message}`);
+    stats.gen1.errors++;
   }
 }
 
-function main() {
-  ensureLatestRepo();
-  for (const platform of PLATFORMS) {
-    processPlatform(platform);
-  }
-  for (const platform of PLATFORMS) {
-    processGen1Platform(platform);
-  }
-
+function generateApiReferences() {
   // Step 3: Extract static API reference docs for all Gen2 platforms
   const apiRefJson = path.join(REPO_DIR, 'src', 'directory', 'apiReferences', 'amplify-js.json');
   if (fs.existsSync(apiRefJson)) {
     for (const platform of PLATFORMS) {
       const apiRefOut = path.join('extracted-docs', `gen2-docs-${platform}`, 'build-a-backend', 'add-aws-services');
       if (fs.existsSync(path.join('extracted-docs', `gen2-docs-${platform}`))) {
-        console.log(`\n=== Generating static API reference docs for ${platform} ===`);
         try {
-          execSync(`node scripts/extract-api-reference.js "${apiRefJson}" "${apiRefOut}"`, { stdio: 'inherit' });
+          execSync(`node scripts/extract-api-reference.js "${apiRefJson}" "${apiRefOut}"`, { stdio: ['ignore', 'pipe', 'pipe'] });
           
           // Check if "reference" directories exist in category folders
           const categoriesDir = path.join('extracted-docs', `gen2-docs-${platform}`, 'build-a-backend', 'add-aws-services');
@@ -226,20 +221,66 @@ function main() {
                   path.join(referenceDir, 'index.md'),
                   fs.readFileSync(referenceMdPath, 'utf8')
                 );
-                console.log(`Created reference directory for ${platform}/${category}`);
               }
             }
           }
+          stats.apiRefs.processed++;
         } catch (err) {
           console.error(`Error generating API reference docs for ${platform}: ${err.message}`);
+          stats.apiRefs.errors++;
         }
       }
     }
   } else {
     console.warn('amplify-js.json not found, skipping API reference extraction.');
   }
+}
 
-  console.log('\nAll done! Outputs are in ./extracted-docs/gen2-docs-<platform>/ and ./extracted-docs/gen1-docs-<platform>/ for each platform.');
+function createHtmlIndexes() {
+  // Step 4: Create index.html files from README.md files in all platform directories
+  try {
+    execSync('node scripts/create-html-indexes.js', { stdio: ['ignore', 'pipe', 'pipe'] });
+    return true;
+  } catch (err) {
+    console.error(`Error creating HTML index files: ${err.message}`);
+    return false;
+  }
+}
+
+function main() {
+  console.log('Starting AWS Amplify documentation extraction process...');
+  
+  if (!ensureLatestRepo()) {
+    console.error('Failed to access repository. Aborting process.');
+    return;
+  }
+  
+  console.log(`Processing ${PLATFORMS.length} Gen2 platforms...`);
+  for (const platform of PLATFORMS) {
+    processPlatform(platform);
+  }
+  
+  console.log(`Processing ${PLATFORMS.length} Gen1 platforms...`);
+  for (const platform of PLATFORMS) {
+    processGen1Platform(platform);
+  }
+
+  console.log('Generating API references...');
+  generateApiReferences();
+
+  console.log('Creating HTML indexes...');
+  const indexesCreated = createHtmlIndexes();
+  
+  // Print summary
+  console.log('\nExtraction Summary:');
+  console.log(`- Gen2 Platforms: ${stats.gen2.processed} processed${stats.gen2.errors > 0 ? `, ${stats.gen2.errors} errors` : ''}`);
+  console.log(`- Gen1 Platforms: ${stats.gen1.processed} processed${stats.gen1.errors > 0 ? `, ${stats.gen1.errors} errors` : ''}`);
+  console.log(`- API References: ${stats.apiRefs.processed} processed${stats.apiRefs.errors > 0 ? `, ${stats.apiRefs.errors} errors` : ''}`);
+  console.log(`- HTML Indexes: ${indexesCreated ? 'Created successfully' : 'Creation failed'}`);
+  
+  console.log('\nOutputs are in:');
+  console.log('- ./extracted-docs/gen2-docs-<platform>/ for each Gen2 platform');
+  console.log('- ./extracted-docs/gen1-docs-<platform>/ for each Gen1 platform');
 }
 
 main();

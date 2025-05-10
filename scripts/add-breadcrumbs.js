@@ -22,8 +22,6 @@ if (!userDocsRoot) {
   }
 }
 
-console.log('Using docs root for breadcrumbs:', DOCS_ROOT);
-
 // Helper: Convert a file path to a breadcrumb array
 function getBreadcrumbs(filePath) {
   const rel = path.relative(DOCS_ROOT, filePath);
@@ -99,17 +97,32 @@ function main() {
       else if (entry.isFile() && entry.name.endsWith('.md')) allFiles.push(full);
     }
   }
-  walk(DOCS_ROOT);
-
-  for (const file of allFiles) {
-    let content = fs.readFileSync(file, 'utf8');
-    const breadcrumbs = getBreadcrumbs(file);
-    const breadcrumbMd = generateBreadcrumbMd(breadcrumbs);
-    const newContent = insertBreadcrumb(content, breadcrumbMd);
-    fs.writeFileSync(file, newContent, 'utf8');
-    console.log(`Breadcrumbs added: ${path.relative(DOCS_ROOT, file)}`);
+  
+  try {
+    walk(DOCS_ROOT);
+    
+    let processedCount = 0;
+    let skippedCount = 0;
+    
+    for (const file of allFiles) {
+      let content = fs.readFileSync(file, 'utf8');
+      const breadcrumbs = getBreadcrumbs(file);
+      const breadcrumbMd = generateBreadcrumbMd(breadcrumbs);
+      const newContent = insertBreadcrumb(content, breadcrumbMd);
+      
+      if (newContent !== content) {
+        fs.writeFileSync(file, newContent, 'utf8');
+        processedCount++;
+      } else {
+        skippedCount++;
+      }
+    }
+    
+    console.log(`Breadcrumb insertion complete: ${processedCount} files updated, ${skippedCount} files already had breadcrumbs.`);
+  } catch (error) {
+    console.error(`Error adding breadcrumbs: ${error.message}`);
+    process.exit(1);
   }
-  console.log('Breadcrumb insertion complete.');
 }
 
 main();

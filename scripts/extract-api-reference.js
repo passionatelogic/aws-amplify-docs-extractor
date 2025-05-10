@@ -100,7 +100,6 @@ function identifyCategoryPrefixes(json) {
     });
   }
   
-  console.log(`Identified ${Object.keys(prefixMapping).length} category prefixes:`, prefixMapping);
   return prefixMapping;
 }
 
@@ -255,71 +254,84 @@ function main() {
     outputRoot = path.resolve(path.join(process.cwd(), userOutputRoot));
   }
 
-  console.log('Using API reference output root:', outputRoot);
-  const json = loadJson(jsonPath);
-  
-  // Dynamically identify category prefixes
-  const categoryPrefixes = identifyCategoryPrefixes(json);
-  
-  // Generate documentation for each identified category
-  // Map from original docs categories to normalized names
-  const categoryMapping = {
-    'rest-api': 'api',     // Map kebab-case to our naming convention
-    'tagging-resources': 'taggingresources'
-  };
-  
-  for (const [category, prefix] of Object.entries(categoryPrefixes)) {
-    const entities = extractCategoryEntities(json, prefix);
-    if (entities.length === 0) continue;
+  try {
+    const json = loadJson(jsonPath);
     
-    // Extract methods separately to create method-specific documentation
-    const methods = extractCategoryMethods(json, prefix);
-    const types = entities.filter(entity => !methods.includes(entity));
+    // Dynamically identify category prefixes
+    const categoryPrefixes = identifyCategoryPrefixes(json);
     
-    // Create a more structured API reference with table of contents
-    let md = `# ${prefix} API Reference\n\n`;
+    // Generate documentation for each identified category
+    // Map from original docs categories to normalized names
+    const categoryMapping = {
+      'rest-api': 'api',     // Map kebab-case to our naming convention
+      'tagging-resources': 'taggingresources'
+    };
     
-    // First list API methods in TOC if they exist
-    if (methods.length > 0) {
-      md += '## API Methods\n\n';
-      methods.forEach(method => {
-        md += `- [${method.name}](#${method.name.toLowerCase()})\n`;
+    let totalCategories = 0;
+    let totalEntities = 0;
+    let totalMethods = 0;
+    
+    for (const [category, prefix] of Object.entries(categoryPrefixes)) {
+      const entities = extractCategoryEntities(json, prefix);
+      if (entities.length === 0) continue;
+      
+      totalCategories++;
+      totalEntities += entities.length;
+      
+      // Extract methods separately to create method-specific documentation
+      const methods = extractCategoryMethods(json, prefix);
+      totalMethods += methods.length;
+      
+      const types = entities.filter(entity => !methods.includes(entity));
+      
+      // Create a more structured API reference with table of contents
+      let md = `# ${prefix} API Reference\n\n`;
+      
+      // First list API methods in TOC if they exist
+      if (methods.length > 0) {
+        md += '## API Methods\n\n';
+        methods.forEach(method => {
+          md += `- [${method.name}](#${method.name.toLowerCase()})\n`;
+        });
+        md += '\n';
+      }
+      
+      // Then list data types in TOC
+      md += '## Table of Contents\n\n';
+      types.forEach(entity => {
+        md += `- [${entity.name}](#${entity.name.toLowerCase()})\n`;
       });
       md += '\n';
-    }
-    
-    // Then list data types in TOC
-    md += '## Table of Contents\n\n';
-    types.forEach(entity => {
-      md += `- [${entity.name}](#${entity.name.toLowerCase()})\n`;
-    });
-    md += '\n';
-    
-    // Add details for each method first with more detailed documentation
-    if (methods.length > 0) {
-      for (const method of methods) {
-        md += renderMethodMd(method);
+      
+      // Add details for each method first with more detailed documentation
+      if (methods.length > 0) {
+        for (const method of methods) {
+          md += renderMethodMd(method);
+        }
       }
+      
+      // Add details for each type entity
+      for (const entity of types) {
+        md += renderEntityMd(entity);
+      }
+      
+      // Determine the appropriate output directory, taking into account 
+      // the original docs category structure
+      let mappedCategory = categoryMapping[category] || category;
+      const outDir = path.join(outputRoot, mappedCategory);
+      fs.mkdirSync(outDir, { recursive: true });
+      fs.writeFileSync(path.join(outDir, 'reference.md'), md, 'utf8');
+      
+      // Also create a reference directory with an index.md file (as required by the docs structure)
+      const refDir = path.join(outDir, 'reference');
+      fs.mkdirSync(refDir, { recursive: true });
+      fs.writeFileSync(path.join(refDir, 'index.md'), md, 'utf8');
     }
     
-    // Add details for each type entity
-    for (const entity of types) {
-      md += renderEntityMd(entity);
-    }
-    
-    // Determine the appropriate output directory, taking into account 
-    // the original docs category structure
-    let mappedCategory = categoryMapping[category] || category;
-    const outDir = path.join(outputRoot, mappedCategory);
-    fs.mkdirSync(outDir, { recursive: true });
-    fs.writeFileSync(path.join(outDir, 'reference.md'), md, 'utf8');
-    
-    // Also create a reference directory with an index.md file (as required by the docs structure)
-    const refDir = path.join(outDir, 'reference');
-    fs.mkdirSync(refDir, { recursive: true });
-    fs.writeFileSync(path.join(refDir, 'index.md'), md, 'utf8');
-    
-    console.log(`Generated: ${mappedCategory}/reference.md and ${mappedCategory}/reference/index.md`);
+    console.log(`API Reference generation complete: ${totalCategories} categories processed, ${totalMethods} methods and ${totalEntities - totalMethods} types documented.`);
+  } catch (error) {
+    console.error(`Error processing API reference: ${error.message}`);
+    process.exit(1);
   }
 }
 

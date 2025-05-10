@@ -152,10 +152,22 @@ function updateFileExtensions(content) {
 function extractPlatformContent(mdx, platform) {
   mdx = cleanFrontmatterAndCode(mdx);
 
-  // Special handling for README files
-  if (mdx.includes('READ ME') && mdx.includes('Ways of working:')) {
-    return updateFileExtensions(mdx);
+// Special handling for README files
+if (mdx.includes('READ ME') && mdx.includes('Ways of working:')) {
+  // Extract only the title and tree structure
+  let result = '**README**\n\n';
+  
+  // Find the platform tree structure (starts with platform name like "gen2")
+  const treeStartMatch = mdx.match(/^(gen2|Updated \d+\/\d+\s*\n+gen2)/m);
+  if (treeStartMatch) {
+    // Get everything from the tree start to the end of the file
+    const treeStartIndex = mdx.indexOf(treeStartMatch[0]);
+    const treeContent = mdx.substring(treeStartIndex);
+    result += treeContent;
   }
+  
+  return updateFileExtensions(result);
+}
 
   let output = '';
   let pos = 0;
@@ -240,14 +252,33 @@ function writeOutputFile(srcFile, content, extractedCount) {
   // Skip creating files with no actual content (just a title)
   const contentWithoutTitle = content.replace(/^# .*$/m, '').trim();
   if (!contentWithoutTitle && path.basename(srcFile) !== 'README.mdx') {
-    console.log(`Skipping empty content: ${relPath}`);
+    // Don't log individual skipped files - we'll summarize at the end
     return false;
   }
   
   fs.mkdirSync(destDir, { recursive: true });
   fs.writeFileSync(destPath, content, 'utf8');
-  // No longer log each extracted file
   return true;
+}
+
+// Helper: Create README.md file for a platform if it doesn't exist
+function createReadmeForPlatform(platform, outputDir) {
+  const readmePath = path.join(outputDir, 'README.md');
+  
+  // Skip if README.md already exists
+  if (fs.existsSync(readmePath)) {
+    // Don't log individual README checks
+    return;
+  }
+  
+  // Create platform-specific README content with just title and directory structure
+  const readmeContent = `# AWS Amplify ${platform.charAt(0).toUpperCase() + platform.slice(1)} Documentation
+
+This directory contains the AWS Amplify documentation for the ${platform} platform.
+`;
+
+  // Create the README.md file
+  fs.writeFileSync(readmePath, readmeContent, 'utf8');
 }
 
 function main() {
@@ -260,13 +291,20 @@ function main() {
   const mdxFiles = findMdxFiles(SRC_ROOT);
   let extractedCount = 0;
   let skippedCount = 0;
+  let emptyCount = 0;
+  
+  // Ensure output directory exists
+  fs.mkdirSync(DEST_ROOT, { recursive: true });
+  
+  // Create README.md for the platform if it doesn't exist
+  createReadmeForPlatform(platform, DEST_ROOT);
   
   for (const file of mdxFiles) {
     const mdx = fs.readFileSync(file, 'utf8');
     
     // Check if file should be included for this platform based on meta.platforms
     if (!isPlatformRelevant(mdx, platform)) {
-      console.log(`Skipping ${path.relative(SRC_ROOT, file)} - not relevant for ${platform} platform.`);
+      // Don't log individual skipped files
       skippedCount++;
       continue;
     }
@@ -303,7 +341,7 @@ function main() {
       let finalContent;
       if (!content.trim() && title) {
         finalContent = `# ${title}\n\n> This content is not available for the ${platform} platform.`;
-        console.log(`Empty content for ${path.relative(SRC_ROOT, file)}, adding platform notice.`);
+        emptyCount++;
       } else {
         finalContent = title ? `# ${title}\n\n${content}` : content;
       }
@@ -313,7 +351,7 @@ function main() {
       }
     }
   }
-  console.log(`Extraction complete: ${extractedCount} files extracted, ${skippedCount} files skipped due to platform filtering.`);
+  console.log(`Extraction complete: ${extractedCount} files extracted, ${skippedCount} files skipped due to platform filtering, ${emptyCount} files with empty content.`);
 }
 
 main();
