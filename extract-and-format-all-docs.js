@@ -1,5 +1,6 @@
-// run-all.js
-// Stand-alone orchestrator for extracting Gen 2 Vue docs from aws-amplify/docs.git
+// extract-and-format-all-docs.js
+// Stand-alone orchestrator for extracting Gen 2 docs from aws-amplify/docs.git
+// Improved to preserve general content in overview pages
 
 const { execSync } = require('child_process');
 const path = require('path');
@@ -42,13 +43,6 @@ function processPlatform(platform) {
   try {
     // Extract docs for this platform
     execSync(`node scripts/extract-docs.js "${srcDir}" "${outDir}" "${platform}"`, { stdio: 'inherit' });
-    
-    // Flatten folders for this platform
-    try {
-      execSync(`node scripts/flatten-single-index-folders.js "${outDir}"`, { stdio: 'inherit' });
-    } catch (err) {
-      console.error(`Error flattening folders for ${platform}: ${err.message}`);
-    }
     
     // Add breadcrumbs for this platform
     try {

@@ -16,7 +16,7 @@ A comprehensive, stand-alone tool to extract, process, and statically generate d
 - **Automated Processing Pipeline:**  
   For each platform, the tool:
   1. Extracts all relevant documentation (with platform-specific and shared content)
-  2. Flattens single-index folders for a clean structure
+  2. Preserves general content from overview pages while generating proper navigation
   3. Adds breadcrumbs to every Markdown file for easy navigation
   4. **Generates comprehensive API reference documentation for every service category** (Auth, Storage, Analytics, API, etc.) in every platform's output
 
@@ -43,7 +43,7 @@ A comprehensive, stand-alone tool to extract, process, and statically generate d
    This will:
    - Clone (or update) the latest `aws-amplify/docs` repo into `./aws-amplify-docs`
    - Extract and process documentation for all supported platforms
-   - Flatten folder structures and add breadcrumbs
+   - Add breadcrumbs
    - Generate comprehensive API reference docs for each category across all platforms
 
 3. **Result:**  
@@ -65,10 +65,7 @@ A comprehensive, stand-alone tool to extract, process, and statically generate d
   Orchestrates the entire workflow: fetches the latest docs, runs all processing scripts for every platform, and generates comprehensive API reference docs. Ensures proper directory structure matching the original docs site.
 
 - **scripts/extract-docs.js**  
-  Extracts platform-specific and shared content from all Amplify documentation `.mdx` files, converts them to Markdown, and outputs them to the appropriate platform directory. Handles platform-specific content filters and properly processes special components.
-
-- **scripts/flatten-single-index-folders.js**  
-  Flattens the documentation structure by replacing any folder that contains only a single `index.md` file and no subfolders with a single `.md` file at the parent level. Updates all internal links to maintain navigation integrity.
+  Extracts platform-specific and shared content from all Amplify documentation `.mdx` files, converts them to Markdown, and outputs them to the appropriate platform directory. Handles platform-specific content filters and properly processes special components. Now preserves general (all-platform) content from overview pages while still generating proper navigation structure.
 
 - **scripts/add-breadcrumbs.js**  
   Adds a breadcrumb trail to the top of every Markdown file, reflecting the file's full path and context within the documentation. Ensures navigation is intuitive and consistent.

@@ -59,7 +59,7 @@ function findMdxFiles(dir, root = dir) {
       results = results.concat(findMdxFiles(filePath, root));
     } else if (
       file.isFile() &&
-      file.name.endsWith('.mdx') &&
+      (file.name.endsWith('.mdx') || file.name === 'README.mdx') &&
       !isInPlaceholderFolder(filePath, root)
     ) {
       results.push(filePath);
@@ -100,6 +100,11 @@ function removeNonVueReactBlocks(md) {
 
 // Helper: Check if file is relevant for the current platform
 function isPlatformRelevant(mdx, platform) {
+  // README files are always relevant for all platforms
+  if (mdx.includes('READ ME') && mdx.includes('Ways of working:')) {
+    return true;
+  }
+  
   // Try to find: export const meta = { ... platforms: ['platform1', 'platform2'], ... }
   const metaMatch = mdx.match(/meta\s*=\s*\{([\s\S]*?)\}/m);
   if (metaMatch) {
@@ -133,8 +138,24 @@ function isPlatformRelevant(mdx, platform) {
   return true;
 }
 
+// Helper: Update all file extension references in README and other files
+function updateFileExtensions(content) {
+  // Replace all .mdx references with .md
+  content = content.replace(/\.mdx/g, '.md');
+  
+  // Replace any README.md references
+  content = content.replace(/README\.md/g, 'README.md');
+  
+  return content;
+}
+
 function extractPlatformContent(mdx, platform) {
   mdx = cleanFrontmatterAndCode(mdx);
+
+  // Special handling for README files
+  if (mdx.includes('READ ME') && mdx.includes('Ways of working:')) {
+    return updateFileExtensions(mdx);
+  }
 
   let output = '';
   let pos = 0;
@@ -172,11 +193,20 @@ function extractPlatformContent(mdx, platform) {
   return output;
 }
 
-// Helper: Check if file is an overview file (contains only <Overview ... />)
+// Helper: Check if file contains an overview component
 function isOverviewFile(mdx) {
-  const cleaned = mdx.replace(/\/\/.*$/gm, '').replace(/\s+/g, '');
-  return cleaned.includes('<OverviewchildPageNodes={props.childPageNodes}/>') ||
-         cleaned.match(/^<Overview[\s\S]*\/>$/m);
+  return mdx.includes('<Overview') && mdx.includes('childPageNodes');
+}
+
+// Helper: Remove the Overview component and related code from content
+function removeOverviewComponent(content) {
+  // Remove Overview component
+  content = content.replace(/<Overview[^>]*childPageNodes[^>]*\/>/g, '');
+  
+  // Remove any references to childPageNodes variable
+  content = content.replace(/const\s+childPageNodes\s*=\s*getChildPageNodes\([^)]*\)\s*;?/g, '');
+  
+  return content.trim();
 }
 
 // Helper: Generate Markdown TOC for a directory
@@ -202,9 +232,14 @@ function writeOutputFile(srcFile, content, extractedCount) {
   const destPath = path.join(DEST_ROOT, relPath);
   const destDir = path.dirname(destPath);
   
+  // Special handling for README files - make sure to update all file extensions
+  if (path.basename(srcFile) === 'README.mdx') {
+    content = updateFileExtensions(content);
+  }
+  
   // Skip creating files with no actual content (just a title)
   const contentWithoutTitle = content.replace(/^# .*$/m, '').trim();
-  if (!contentWithoutTitle) {
+  if (!contentWithoutTitle && path.basename(srcFile) !== 'README.mdx') {
     console.log(`Skipping empty content: ${relPath}`);
     return false;
   }
@@ -237,15 +272,32 @@ function main() {
     }
     
     if (isOverviewFile(mdx)) {
+      // For overview files, extract the content first
+      const title = extractTitle(mdx);
+      let content = extractPlatformContent(mdx, platform);
+      
+      // Remove the Overview component if it's still in the content
+      content = removeOverviewComponent(content);
+      
+      // Generate the table of contents
       const srcDir = path.dirname(file);
       const destDir = path.dirname(path.join(DEST_ROOT, path.relative(SRC_ROOT, file)));
       const toc = generateMarkdownTOC(srcDir, destDir);
-      if (writeOutputFile(file, toc, extractedCount)) {
+      
+      // Combine the content and TOC
+      let finalContent;
+      if (content.trim()) {
+        finalContent = title ? `# ${title}\n\n${content}\n\n${toc}` : `${content}\n\n${toc}`;
+      } else {
+        finalContent = title ? `# ${title}\n\n${toc}` : toc;
+      }
+      
+      if (writeOutputFile(file, finalContent, extractedCount)) {
         extractedCount++;
       }
     } else {
       const title = extractTitle(mdx);
-      const content = extractPlatformContent(mdx, platform);
+      let content = extractPlatformContent(mdx, platform);
       
       // If content is empty but we have a title, add a note about platform compatibility
       let finalContent;
